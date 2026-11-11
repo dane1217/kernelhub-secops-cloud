@@ -41,6 +41,8 @@ CREATE DATABASE keycloak OWNER keycloak;
         {"authenticator":"auth-otp-form","requirement":"REQUIRED","priority":20,"authenticatorFlow":False}]}]
     realm = {"realm":"kernelhub","enabled":True,"sslRequired":"none","registrationAllowed":False,
         "resetPasswordAllowed":False,"bruteForceProtected":True,"browserFlow":"secops-browser",
+        "requiredActions":[{"alias":alias,"name":name,"providerId":alias,"enabled":True,"defaultAction":alias=="CONFIGURE_TOTP","priority":priority}
+            for alias,name,priority in (("CONFIGURE_TOTP","Configure OTP",10),("UPDATE_PROFILE","Update Profile",20),("UPDATE_PASSWORD","Update Password",30),("VERIFY_EMAIL","Verify Email",40))],
         "authenticationFlows":flows,"accessTokenLifespan":300,"ssoSessionMaxLifespan":1800,
         "clients":[{"clientId":"secops-web","enabled":True,"protocol":"openid-connect","publicClient":False,
                     "secret":values['OIDC_CLIENT_SECRET'],"standardFlowEnabled":True,"directAccessGrantsEnabled":False,

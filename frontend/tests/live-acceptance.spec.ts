@@ -25,7 +25,7 @@ test('real OIDC + OTP, organization, ingestion, evidence, incident and tenant is
   await page.locator('#kc-login').click();
   console.log('OIDC form state',JSON.stringify({path:new URL(page.url()).pathname,
     headings:await page.locator('h1,h2,[role="alert"]').allTextContents(),
-    inputs:await page.locator('input').evaluateAll(es=>es.map(e=>({id:e.id,name:e.name,type:e.type}))),
+    inputs:await page.locator('input').evaluateAll(es=>es.map(e=>({id:e.id,name:e.getAttribute('name'),type:e.getAttribute('type')}))),
     linkIds:await page.locator('a[id]').evaluateAll(es=>es.map(e=>e.id))}));
   await expect(page.locator('#mode-manual')).toBeVisible({timeout:15000});
   await page.locator('#mode-manual').click();
