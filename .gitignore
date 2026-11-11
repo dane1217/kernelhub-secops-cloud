@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+.local/
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.next/
+test-results/
+playwright-report/
+backups/
+*.sqlite*
+coverage.xml
+.coverage
+.pytest_cache/

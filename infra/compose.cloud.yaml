@@ -1,0 +1,53 @@
+# Reference runtime for a VM with private, TLS-protected managed backing services.
+# Do not combine with the development compose.yaml.
+name: kernelhub-secops-cloud
+x-app: &app
+  image: ${APP_IMAGE:?set APP_IMAGE}:${RELEASE_TAG:?set RELEASE_TAG}
+  env_file: .env.cloud
+  restart: unless-stopped
+  networks: [application,egress]
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp:size=64m]
+  mem_limit: 768m
+  cpus: 1.0
+services:
+  edge:
+    image: caddy:2.10.2-alpine
+    ports: ["80:80","443:443"]
+    environment: {DOMAIN: "${DOMAIN:?set DOMAIN}", ACME_EMAIL: "${ACME_EMAIL:?set ACME_EMAIL}"}
+    volumes: ["./Caddyfile.cloud:/etc/caddy/Caddyfile:ro","caddydata:/data","caddyconfig:/config"]
+    networks: [application,egress]
+    restart: unless-stopped
+    mem_limit: 128m
+  web:
+    image: ${WEB_IMAGE:?set WEB_IMAGE}:${RELEASE_TAG}
+    networks: [application]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 512m
+  migrate:
+    <<: *app
+    command: ["python","-m","secops.manage","migrate"]
+    environment: {DATABASE_URL: "${MIGRATION_DATABASE_URL:?set migration credential}"}
+    restart: "no"
+    healthcheck: {disable: true}
+  api:
+    <<: *app
+  worker:
+    <<: *app
+    command: ["celery","-A","secops.worker:celery","worker","--loglevel=WARNING","--concurrency=2"]
+    healthcheck: {disable: true}
+  scheduler:
+    <<: *app
+    command: ["celery","-A","secops.worker:celery","beat","--loglevel=WARNING","--schedule=/tmp/celerybeat"]
+    healthcheck: {disable: true}
+    mem_limit: 256m
+networks:
+  application: {internal: true}
+  egress: {}
+volumes:
+  caddydata: {}
+  caddyconfig: {}

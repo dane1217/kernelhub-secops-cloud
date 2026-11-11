@@ -1,0 +1,10 @@
+[Unit]
+Description=Encrypted local SecOps pilot backup
+Requires=docker.service
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/kernelhub-secops
+EnvironmentFile=/etc/kernelhub-secops/backup.env
+ExecStart=/bin/bash /opt/kernelhub-secops/scripts/backup-local.sh
+UMask=0077
