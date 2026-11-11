@@ -1,0 +1,79 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+permissions: {contents: read}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -c backend/constraints.txt -r backend/requirements.txt pip-audit
+      - run: python -m unittest discover -s tests -t . -v
+        working-directory: backend
+      - run: python -m unittest integration.test_api -v
+        working-directory: backend
+      - run: pip-audit --strict
+      - run: pip freeze > resolved-backend.txt
+      - uses: actions/upload-artifact@v4
+        with: {name: resolved-backend, path: resolved-backend.txt}
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: npm ci --no-fund
+        working-directory: frontend
+      - run: npm run typecheck && npm run build && npm audit --audit-level=high
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        with: {name: npm-lock, path: frontend/package-lock.json}
+  containers:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: python scripts/setup.py
+      - run: sudo sysctl -w vm.max_map_count=262144
+      - run: docker compose config --quiet && docker compose up -d --build --wait
+      - name: Wait for indexing and archive services
+        run: |
+          for n in $(seq 1 30); do
+            docker compose exec -T api python -c "from secops.runtime import build; _,_,s=build();s.search.health();s.objects.health()" && exit 0
+            sleep 2
+          done
+          exit 1
+      - run: docker compose exec -T -e RUN_STACK_TESTS=1 api python -m unittest integration.test_stack -v
+      - name: Exercise search outage and forced worker recovery
+        run: |
+          docker compose stop opensearch
+          docker compose exec -T -e RUN_STACK_TESTS=1 api python -m integration.outage_probe prepare
+          docker compose kill -s KILL worker
+          docker compose up -d opensearch worker
+          docker compose exec -T -e RUN_STACK_TESTS=1 api python -m integration.outage_probe recover
+      - run: npm ci --no-fund && npx playwright install --with-deps chromium && npm run test:browser
+        working-directory: frontend
+        env: {RUN_LIVE_BROWSER_TESTS: '1'}
+      - name: Validate a fresh PostgreSQL logical restore
+        run: |
+          docker compose exec -T postgres pg_dump -U postgres -Fc secops > .local/restore.dump
+          docker compose exec -T postgres psql -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE secops_restore_check OWNER secops_migration"
+          docker compose exec -T postgres pg_restore -U postgres -d secops_restore_check --exit-on-error < .local/restore.dump
+          docker compose exec -T -e RUN_STACK_TESTS=1 api python -m integration.restore_probe
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with: {image-ref: kernelhub-secops-api, severity: 'CRITICAL,HIGH', exit-code: '1'}
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with: {image-ref: kernelhub-secops-web, severity: 'CRITICAL,HIGH', exit-code: '1'}
+      - if: failure()
+        name: Diagnose local identity-provider failure
+        run: docker compose logs --tail=60 keycloak
+      - if: always()
+        run: docker compose down

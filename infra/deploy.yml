@@ -1,0 +1,42 @@
+---
+# Bring-your-own Ubuntu VM. No cloud resources are provisioned by this playbook.
+- name: Deploy a reviewed SecOps release
+  hosts: secops
+  become: true
+  vars:
+    deployment_root: /opt/kernelhub-secops
+  tasks:
+    - name: Create runtime directory
+      ansible.builtin.file:
+        path: "{{ deployment_root }}"
+        state: directory
+        mode: '0700'
+    - name: Install cloud Compose configuration
+      ansible.builtin.copy:
+        src: compose.cloud.yaml
+        dest: "{{ deployment_root }}/compose.yaml"
+        mode: '0600'
+    - name: Install TLS edge configuration
+      ansible.builtin.copy:
+        src: Caddyfile.cloud
+        dest: "{{ deployment_root }}/Caddyfile.cloud"
+        mode: '0600'
+    - name: Install externally supplied secret environment
+      ansible.builtin.copy:
+        src: "{{ secret_env_file }}"
+        dest: "{{ deployment_root }}/.env.cloud"
+        mode: '0600'
+      no_log: true
+    - name: Validate deployment configuration
+      ansible.builtin.command: docker compose --env-file .env.cloud config --quiet
+      args: {chdir: "{{ deployment_root }}"}
+      changed_when: false
+    - name: Pull reviewed images
+      ansible.builtin.command: docker compose --env-file .env.cloud pull
+      args: {chdir: "{{ deployment_root }}"}
+    - name: Run forward compatible migrations
+      ansible.builtin.command: docker compose --env-file .env.cloud run --rm migrate
+      args: {chdir: "{{ deployment_root }}"}
+    - name: Apply release
+      ansible.builtin.command: docker compose --env-file .env.cloud up -d --wait api web worker scheduler edge
+      args: {chdir: "{{ deployment_root }}"}

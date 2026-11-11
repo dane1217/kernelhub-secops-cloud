@@ -1,0 +1,18 @@
+groups:
+  - name: secops-pipeline
+    rules:
+      - alert: SecOpsWorkerStalled
+        expr: secops_worker_heartbeat_age_seconds > 60
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Worker scheduler heartbeat is stale"}
+      - alert: SecOpsDeadLetters
+        expr: secops_jobs_dead > 0
+        for: 1m
+        labels: {severity: high}
+        annotations: {summary: "Ingestion jobs need operator replay"}
+      - alert: SecOpsIngestionBacklog
+        expr: secops_jobs_pending > 1000
+        for: 5m
+        labels: {severity: high}
+        annotations: {summary: "Archive/index processing backlog is growing"}

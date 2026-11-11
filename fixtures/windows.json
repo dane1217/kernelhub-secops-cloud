@@ -1,0 +1,1 @@
+[{"event_id":"windows-fixture-001","timestamp":"2026-11-11T12:00:00Z","host":"synthetic-windows","synthetic":true,"winlog":{"event_id":4625,"event_data":{"TargetUserName":"synthetic-user","IpAddress":"192.0.2.20"}}}]

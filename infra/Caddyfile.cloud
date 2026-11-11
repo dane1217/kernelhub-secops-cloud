@@ -1,0 +1,30 @@
+{
+  admin off
+  email {$ACME_EMAIL}
+}
+{$DOMAIN} {
+  request_body {
+    max_size 1MB
+  }
+  header {
+    Strict-Transport-Security "max-age=31536000"
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+    Referrer-Policy no-referrer
+    Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Cache-Control no-store
+    -Server
+  }
+  handle /api/* {
+    reverse_proxy api:8000
+  }
+  handle /auth/* {
+    reverse_proxy api:8000
+  }
+  handle /internal/* {
+    respond 404
+  }
+  handle {
+    reverse_proxy web:3000
+  }
+}

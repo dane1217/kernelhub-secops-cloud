@@ -1,0 +1,42 @@
+# Example only. The windows_event_log source is currently beta upstream.
+# Use a dedicated platform source with kind=windows.
+data_dir = 'C:\ProgramData\vector'
+
+[sources.security]
+type = "windows_event_log"
+channels = ["Security,Microsoft-Windows-PowerShell/Operational,Microsoft-Windows-Windows Defender/Operational"]
+only_event_ids = [4624,4625,4720,4728,4732,4756,1102,4688,4104,5001]
+read_existing_events = false
+render_message = false
+
+[transforms.contract]
+type = "remap"
+inputs = ["security"]
+source = '''
+.winlog = {"event_id": .event_id, "event_data": .event_data, "computer_name": .computer}
+del(.event_id)
+.host = to_string(.computer) ?? "unknown-windows-host"
+.timestamp = format_timestamp!(.timestamp, format: "%+")
+'''
+
+[sinks.secops]
+type = "http"
+inputs = ["contract"]
+uri = "https://${KH_INGEST_HOST}/api/ingest"
+method = "post"
+compression = "none"
+encoding.codec = "json"
+framing.method = "character_delimited"
+framing.character_delimited.delimiter = ","
+batch.max_events = 1
+batch.max_bytes = 32768
+batch.timeout_secs = 1
+auth.strategy = "bearer"
+auth.token = "${KH_INGEST_KEY}"
+request.headers.Content-Type = "application/json"
+buffer.type = "disk"
+buffer.max_size = 268435488
+buffer.when_full = "block"
+acknowledgements.enabled = true
+tls.verify_certificate = true
+tls.verify_hostname = true
