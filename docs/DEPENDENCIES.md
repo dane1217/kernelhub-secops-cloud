@@ -1,6 +1,6 @@
 # Dependency and license review
 
-Checked against current official documentation on 2026-11-11. Runtime integration/build validation is a separate gate; a documented version does not prove the whole stack was installed successfully on this host. Direct dependencies/image versions are pinned; complete transitive locks and image digests must be captured from a successful network-enabled build before production. CI uploads resolved Python and npm versions for review.
+Checked against current official documentation on 2026-11-11. Runtime integration/build validation is a separate gate. Backend HTTP checks, the frontend build and dependency audits passed in GitHub Actions. Direct dependency/image versions are pinned; `backend/constraints.txt` and `frontend/package-lock.json` capture the successful CI resolution. Python artifact hashes and immutable base/application image digests remain production gates. CI also uploads resolved versions for review.
 
 | Component | Selected line/version | License / integration note | Primary reference |
 |---|---|---|---|

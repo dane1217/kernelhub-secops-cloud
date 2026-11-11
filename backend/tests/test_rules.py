@@ -53,3 +53,8 @@ class RuleFixtures(unittest.TestCase):
         self.assertEqual("system.message", normalize(win, "windows", now())["action"])
         win["winlog"]["event_id"] = 4720
         self.assertEqual("account.create", normalize(win, "windows", now())["action"])
+
+    def test_nonfinite_and_invalid_structured_fields_are_rejected(self):
+        for fields, kind in (({"extra":float("nan")},"normalized"), ({"event_id":True},"normalized"), ({"winlog":[]},"windows")):
+            with self.subTest(fields=fields), self.assertRaises(InvalidEvent):
+                normalize({"timestamp":now(),"action":"system.message",**fields},kind,now())

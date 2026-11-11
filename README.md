@@ -1,6 +1,6 @@
 # KernelHub SecOps Cloud
 
-A multi-tenant security monitoring application built as a modular monolith with background workers. Product branding is configured with `PRODUCT_NAME`.
+A multi-tenant security monitoring application built as a modular monolith with background workers. Branding is configured with `PRODUCT_NAME`, `BRAND_MARK` and `BRAND_ACCENT`.
 
 **Status: Phase 1 implementation, pending full-stack validation. Not production approved.** The repository contains real backend workflows and a Next.js console. Later-phase automation, exposure intelligence, and AI are explicitly unavailable. No customer production servers are used.
 
@@ -58,7 +58,7 @@ docs/                  Architecture, API, security, operations and feature statu
 ```bash
 cd backend
 python -m unittest discover -s tests -t . -v
-pip install -r requirements.txt
+pip install -c constraints.txt -r requirements.txt
 python -m unittest integration.test_api -v
 ```
 
@@ -67,7 +67,7 @@ From the repository root with Docker services healthy:
 ```bash
 docker compose exec -e RUN_STACK_TESTS=1 api python -m unittest integration.test_stack -v
 cd frontend
-npm install
+npm ci
 npm run typecheck
 npm run build
 npx playwright install chromium

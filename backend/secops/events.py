@@ -53,7 +53,13 @@ def redact(value, depth=0):
 
 
 def normalize(raw, kind, received_at):
-    if not isinstance(raw, dict) or len(json.dumps(raw)) > 32768:
+    if not isinstance(raw, dict):
+        raise InvalidEvent("event must be an object of at most 32 KiB")
+    try:
+        serialized = json.dumps(raw, allow_nan=False)
+    except (ValueError, TypeError, RecursionError) as exc:
+        raise InvalidEvent("event must contain finite JSON values within supported nesting") from exc
+    if len(serialized) > 32768:
         raise InvalidEvent("event must be an object of at most 32 KiB")
     if any(k in raw for k in ("org_id", "tenant_id", "workspace_id")):
         raise InvalidEvent("tenant and workspace are derived from the credential")
@@ -114,7 +120,7 @@ def normalize(raw, kind, received_at):
     external = raw.get("event_id")
     if external is None:
         external = hashlib.sha256(json.dumps(raw, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    if not isinstance(external, (str, int)) or not 1 <= len(str(external)) <= 256:
+    if isinstance(external, bool) or not isinstance(external, (str, int)) or not 1 <= len(str(external)) <= 256:
         raise InvalidEvent("invalid event_id")
     severity = data.get("severity", "info")
     outcome = data.get("outcome", "failure" if action == "auth.failure" else "success" if action in ("auth.success", "remote.login") else "unknown")

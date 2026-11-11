@@ -1,2 +1,2 @@
 import { defineConfig } from '@playwright/test';
-export default defineConfig({testDir:'./tests',use:{baseURL:process.env.TEST_BASE_URL||'http://127.0.0.1:8080'},reporter:'list'});
+export default defineConfig({testDir:'./tests',workers:1,use:{baseURL:process.env.TEST_BASE_URL||'http://localhost:8080'},reporter:'list'});

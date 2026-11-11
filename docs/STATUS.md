@@ -22,7 +22,7 @@
 
 ## Phase 1 validation still required
 
-Network-enabled dependency resolution, frontend typecheck/build, HTTP tests, actual PostgreSQL/OpenSearch/S3 round trip, OIDC/OTP/invitation browser flow, worker kill/restart during processing, service-outage drill, second-tenant browser/API access attempts, collector host validation and reproducible deployment/restore. CI defines automated subsets; do not claim results until a run completes successfully.
+Dependency resolution, frontend typecheck/build, HTTP tests and an actual PostgreSQL/OpenSearch/S3 round trip have passed in CI. Still required: OIDC/OTP/invitation browser flow, worker kill/restart during processing, service-outage drill, collector host validation and reproducible cloud deployment/restore. Version constraints/npm locks are now checked in. CI defines automated subsets; report each check's observed result separately from the overall workflow outcome.
 
 ## Phase 2 — pilot readiness
 

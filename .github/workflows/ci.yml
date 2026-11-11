@@ -6,39 +6,34 @@ concurrency:
   cancel-in-progress: true
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.12'}
-      - run: pip install -r backend/requirements.txt pip-audit
+      - run: pip install -c backend/constraints.txt -r backend/requirements.txt pip-audit
       - run: python -m unittest discover -s tests -t . -v
         working-directory: backend
       - run: python -m unittest integration.test_api -v
         working-directory: backend
-      - run: pip-audit -r backend/requirements.txt
+      - run: pip-audit -r backend/requirements.txt -c backend/constraints.txt
       - run: pip freeze > resolved-backend.txt
-      - name: Capture dependency resolution for reproducible source
-        run: python -c "import subprocess,base64; print('SECOPS_PYTHON_LOCK='+base64.b64encode(subprocess.check_output(['pip','freeze'])).decode())"
       - uses: actions/upload-artifact@v4
         with: {name: resolved-backend, path: resolved-backend.txt}
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
-      - run: npm install --no-fund
+      - run: npm ci --no-fund
         working-directory: frontend
       - run: npm run typecheck && npm run build && npm audit --audit-level=high
-        working-directory: frontend
-      - name: Capture dependency resolution for reproducible source
-        run: node -e "console.log('SECOPS_NPM_LOCK='+require('fs').readFileSync('package-lock.json').toString('base64'))"
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         with: {name: npm-lock, path: frontend/package-lock.json}
   containers:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -56,8 +51,9 @@ jobs:
           done
           exit 1
       - run: docker compose exec -T -e RUN_STACK_TESTS=1 api python -m unittest integration.test_stack -v
-      - run: npm install --no-fund && npx playwright install --with-deps chromium && npm run test:browser
+      - run: npm ci --no-fund && npx playwright install --with-deps chromium && npm run test:browser
         working-directory: frontend
+        env: {RUN_LIVE_BROWSER_TESTS: '1'}
       - uses: aquasecurity/trivy-action@v0.36.0
         with: {image-ref: kernelhub-secops-api, severity: 'CRITICAL,HIGH', exit-code: '1'}
       - uses: aquasecurity/trivy-action@v0.36.0
