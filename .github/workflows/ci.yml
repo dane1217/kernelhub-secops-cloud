@@ -1,6 +1,9 @@
 name: CI
 on: [push, pull_request, workflow_dispatch]
 permissions: {contents: read}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -15,6 +18,8 @@ jobs:
         working-directory: backend
       - run: pip-audit -r backend/requirements.txt
       - run: pip freeze > resolved-backend.txt
+      - name: Capture dependency resolution for reproducible source
+        run: python -c "import subprocess,base64; print('SECOPS_PYTHON_LOCK='+base64.b64encode(subprocess.check_output(['pip','freeze'])).decode())"
       - uses: actions/upload-artifact@v4
         with: {name: resolved-backend, path: resolved-backend.txt}
   frontend:
@@ -26,6 +31,9 @@ jobs:
       - run: npm install --no-fund
         working-directory: frontend
       - run: npm run typecheck && npm run build && npm audit --audit-level=high
+        working-directory: frontend
+      - name: Capture dependency resolution for reproducible source
+        run: node -e "console.log('SECOPS_NPM_LOCK='+require('fs').readFileSync('package-lock.json').toString('base64'))"
         working-directory: frontend
       - uses: actions/upload-artifact@v4
         with: {name: npm-lock, path: frontend/package-lock.json}
