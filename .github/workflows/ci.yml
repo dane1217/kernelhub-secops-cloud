@@ -50,9 +50,9 @@ jobs:
       - run: docker compose exec -T -e RUN_STACK_TESTS=1 api python -m unittest integration.test_stack -v
       - run: npm install --no-fund && npx playwright install --with-deps chromium && npm run test:browser
         working-directory: frontend
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@v0.36.0
         with: {image-ref: kernelhub-secops-api, severity: 'CRITICAL,HIGH', exit-code: '1'}
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@v0.36.0
         with: {image-ref: kernelhub-secops-web, severity: 'CRITICAL,HIGH', exit-code: '1'}
       - if: always()
         run: docker compose down
