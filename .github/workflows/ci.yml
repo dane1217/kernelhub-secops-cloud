@@ -16,7 +16,7 @@ jobs:
         working-directory: backend
       - run: python -m unittest integration.test_api -v
         working-directory: backend
-      - run: pip-audit -r backend/requirements.txt -c backend/constraints.txt
+      - run: pip-audit --strict
       - run: pip freeze > resolved-backend.txt
       - uses: actions/upload-artifact@v4
         with: {name: resolved-backend, path: resolved-backend.txt}
@@ -51,9 +51,22 @@ jobs:
           done
           exit 1
       - run: docker compose exec -T -e RUN_STACK_TESTS=1 api python -m unittest integration.test_stack -v
+      - name: Exercise search outage and forced worker recovery
+        run: |
+          docker compose stop opensearch
+          docker compose exec -T -e RUN_STACK_TESTS=1 api python -m integration.outage_probe prepare
+          docker compose kill -s KILL worker
+          docker compose up -d opensearch worker
+          docker compose exec -T -e RUN_STACK_TESTS=1 api python -m integration.outage_probe recover
       - run: npm ci --no-fund && npx playwright install --with-deps chromium && npm run test:browser
         working-directory: frontend
         env: {RUN_LIVE_BROWSER_TESTS: '1'}
+      - name: Validate a fresh PostgreSQL logical restore
+        run: |
+          docker compose exec -T postgres pg_dump -U postgres -Fc secops > .local/restore.dump
+          docker compose exec -T postgres psql -U postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE secops_restore_check OWNER secops_migration"
+          docker compose exec -T postgres pg_restore -U postgres -d secops_restore_check --exit-on-error < .local/restore.dump
+          docker compose exec -T -e RUN_STACK_TESTS=1 api python -m integration.restore_probe
       - uses: aquasecurity/trivy-action@v0.36.0
         with: {image-ref: kernelhub-secops-api, severity: 'CRITICAL,HIGH', exit-code: '1'}
       - uses: aquasecurity/trivy-action@v0.36.0

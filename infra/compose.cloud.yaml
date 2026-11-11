@@ -39,11 +39,21 @@ services:
   worker:
     <<: *app
     command: ["celery","-A","secops.worker:celery","worker","--loglevel=WARNING","--concurrency=2"]
-    healthcheck: {disable: true}
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A secops.worker:celery inspect ping -d celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
   scheduler:
     <<: *app
     command: ["celery","-A","secops.worker:celery","beat","--loglevel=WARNING","--schedule=/tmp/celerybeat"]
-    healthcheck: {disable: true}
+    healthcheck:
+      test: ["CMD", "python", "-m", "secops.health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     mem_limit: 256m
 networks:
   application: {internal: true}
