@@ -32,6 +32,8 @@ Audit is a separate relational table. Immutable triggers reject UPDATE/DELETE, a
 
 Runtime PostgreSQL requires table SELECT/INSERT/UPDATE/DELETE except audit (SELECT/INSERT only) and no schema_migrations privileges. Never run the API as PostgreSQL superuser or migration owner. Local initialization creates separate runtime, migration and Keycloak users. Cloud operators must create the same roles and default grants before migrations.
 
+Compose interpolates a protected host-side environment file into explicit service environment allowlists. API/worker/scheduler containers do not receive PostgreSQL bootstrap passwords, migration-owner credentials or Keycloak administrator passwords. Workers also do not receive the OIDC client secret. The migration job gets only its migration database URL.
+
 The OpenSearch runtime account needs create/index/read permissions limited to `kh-events-*`; never use a shared administrative account. S3 permissions are restricted to the configured event bucket and tenant prefixes wherever workload IAM allows. Workers currently serve all tenants; the shared worker role needs all assigned prefixes. Redis has a password, no published port and noeviction/AOF settings. Disable unneeded Redis administration commands with tested ACLs in production; Celery command requirements must be verified first.
 
 No tenant-configurable outbound URL is supported. Adapter URLs come from protected deployment configuration; redirects are disabled on custom HTTP calls. Enrichment SSRF protection, licensed provider access and action-specific approvals must be designed before those later integrations are enabled.

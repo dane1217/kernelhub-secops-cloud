@@ -1,7 +1,23 @@
 name: kernelhub-secops
+x-runtime-env: &runtime-env
+  APP_ENV: ${APP_ENV:-development}
+  PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+  DATABASE_URL: ${DATABASE_URL:?run scripts/setup.py first}
+  BROKER_URL: ${BROKER_URL:?run scripts/setup.py first}
+  OIDC_ISSUER: ${OIDC_ISSUER}
+  OIDC_INTERNAL_BASE: ${OIDC_INTERNAL_BASE}
+  OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-secops-web}
+  OPENSEARCH_URL: ${OPENSEARCH_URL:-http://opensearch:9200}
+  OPENSEARCH_USER: ${OPENSEARCH_USER:-}
+  OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD:-}
+  S3_BUCKET: ${S3_BUCKET:-secops-events}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://objects:8333}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
 x-app: &app
   build: ./backend
-  env_file: .env
+  environment: *runtime-env
   networks: [private]
   security_opt: [no-new-privileges:true]
   cap_drop: [ALL]
@@ -38,6 +54,13 @@ services:
     healthcheck: {disable: true}
   api:
     <<: *app
+    environment:
+      <<: *runtime-env
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      BOOTSTRAP_SUBJECT: ${BOOTSTRAP_SUBJECT}
+      PRODUCT_NAME: ${PRODUCT_NAME:-KernelHub SecOps Cloud}
+      BRAND_MARK: ${BRAND_MARK:-K}
+      BRAND_ACCENT: "${BRAND_ACCENT:-#47e6bd}"
     depends_on:
       migrate: {condition: service_completed_successfully}
   worker:
@@ -54,6 +77,9 @@ services:
       start_period: 45s
   scheduler:
     <<: *app
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      BROKER_URL: ${BROKER_URL}
     command: ["celery", "-A", "secops.worker:celery", "beat", "--loglevel=WARNING", "--schedule=/tmp/celerybeat"]
     depends_on:
       migrate: {condition: service_completed_successfully}
@@ -120,7 +146,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_RELATIVE_PATH: /idp
-      KC_HOSTNAME: http://localhost:8080
+      KC_HOSTNAME: http://localhost:8080/idp
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
     volumes: ["./.local/realm.json:/opt/keycloak/data/import/realm.json:ro"]

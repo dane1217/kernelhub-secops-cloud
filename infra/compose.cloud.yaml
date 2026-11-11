@@ -1,9 +1,25 @@
 # Reference runtime for a VM with private, TLS-protected managed backing services.
 # Do not combine with the development compose.yaml.
 name: kernelhub-secops-cloud
+x-runtime-env: &runtime-env
+  APP_ENV: ${APP_ENV:-production}
+  PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+  DATABASE_URL: ${DATABASE_URL:?set runtime database credential}
+  BROKER_URL: ${BROKER_URL:?set broker credential}
+  OIDC_ISSUER: ${OIDC_ISSUER:?set identity issuer}
+  OIDC_INTERNAL_BASE: ${OIDC_INTERNAL_BASE:?set internal identity base}
+  OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-secops-web}
+  OPENSEARCH_URL: ${OPENSEARCH_URL:?set private search endpoint}
+  OPENSEARCH_USER: ${OPENSEARCH_USER}
+  OPENSEARCH_PASSWORD: ${OPENSEARCH_PASSWORD}
+  S3_BUCKET: ${S3_BUCKET}
+  S3_ENDPOINT: ${S3_ENDPOINT:-}
+  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
 x-app: &app
   image: ${APP_IMAGE:?set APP_IMAGE}:${RELEASE_TAG:?set RELEASE_TAG}
-  env_file: .env.cloud
+  environment: *runtime-env
   restart: unless-stopped
   networks: [application,egress]
   read_only: true
@@ -36,6 +52,13 @@ services:
     healthcheck: {disable: true}
   api:
     <<: *app
+    environment:
+      <<: *runtime-env
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set client credential}
+      BOOTSTRAP_SUBJECT: ${BOOTSTRAP_SUBJECT:-}
+      PRODUCT_NAME: ${PRODUCT_NAME:-KernelHub SecOps Cloud}
+      BRAND_MARK: ${BRAND_MARK:-K}
+      BRAND_ACCENT: "${BRAND_ACCENT:-#47e6bd}"
   worker:
     <<: *app
     command: ["celery","-A","secops.worker:celery","worker","--loglevel=WARNING","--concurrency=2"]
@@ -47,6 +70,9 @@ services:
       start_period: 45s
   scheduler:
     <<: *app
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      BROKER_URL: ${BROKER_URL}
     command: ["celery","-A","secops.worker:celery","beat","--loglevel=WARNING","--schedule=/tmp/celerybeat"]
     healthcheck:
       test: ["CMD", "python", "-m", "secops.health"]

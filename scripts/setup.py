@@ -13,6 +13,7 @@ def main():
         raise SystemExit("Local configuration already exists; refusing to replace credentials.")
     local = ROOT / ".local"
     local.mkdir(exist_ok=True)
+    local.chmod(0o700)
     values = {k: secrets.token_hex(24) for k in ("POSTGRES_PASSWORD", "DB_APP_PASSWORD", "DB_MIGRATION_PASSWORD", "KEYCLOAK_DB_PASSWORD", "KEYCLOAK_ADMIN_PASSWORD", "REDIS_PASSWORD", "OIDC_CLIENT_SECRET", "AWS_SECRET_ACCESS_KEY")}
     subject = str(uuid.uuid4())
     password = secrets.token_urlsafe(24)
@@ -24,6 +25,7 @@ def main():
         OIDC_CLIENT_ID="secops-web", BOOTSTRAP_SUBJECT=subject, OPENSEARCH_URL="http://opensearch:9200",
         S3_ENDPOINT="http://objects:8333", S3_BUCKET="secops-events", AWS_ACCESS_KEY_ID="secops-local", AWS_DEFAULT_REGION="us-east-1")
     target.write_text("\n".join(f'{k}="{v}"' for k,v in values.items())+"\n", encoding="utf-8")
+    target.chmod(0o600)
     (local / "pg-init.sql").write_text(f"""CREATE ROLE secops_migration LOGIN PASSWORD '{values['DB_MIGRATION_PASSWORD']}';
 CREATE ROLE secops_app LOGIN PASSWORD '{values['DB_APP_PASSWORD']}';
 ALTER DATABASE secops OWNER TO secops_migration;
@@ -53,6 +55,7 @@ CREATE DATABASE keycloak OWNER keycloak;
                   "credentials":[{"type":"password","value":password,"temporary":False}]}]}
     (local/"realm.json").write_text(json.dumps(realm, indent=2), encoding="utf-8")
     (local/"pilot-login.txt").write_text(f"LOCAL DEVELOPMENT ONLY\nURL: http://localhost:8080\nUsername: pilot-admin\nPassword: {password}\nEnroll a real TOTP authenticator on first login.\n", encoding="utf-8")
+    (local/"pilot-login.txt").chmod(0o600)
     print("Local configuration created. Read .local/pilot-login.txt privately, then run docker compose up --build -d.")
 
 
